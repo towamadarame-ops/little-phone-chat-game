@@ -849,15 +849,11 @@ function generateSystemPrompt(chat) {
     }
 
     if(chat.type === 'private') {
-        // --- 修改开始 ---
+        // --- 修改开始: 包含用户人设 ---
         const userPersonaText = chat.userPersona ? `\n我的设定：${chat.userPersona}` : '';
         
         return `世界观设定：\n${worldBookContext}\n\n你正在扮演 ${chat.realName}。我的名字是 ${chat.myName}。${userPersonaText}\n你的设定是：${chat.persona || '无'}。\n\n请完全沉浸，不要出戏。格式要求：普通消息用 [${chat.realName}的消息：内容]；发表情包用 [${chat.realName}发送的表情包：图片URL]。`;
         // --- 修改结束 ---
-    } else {
-
-    if(chat.type === 'private') {
-        return `世界观设定：\n${worldBookContext}\n\n你正在扮演 ${chat.realName}。我的名字是 ${chat.myName}。你的设定是：${chat.persona || '无'}。请完全沉浸，格式要求：普通消息用 [${chat.realName}的消息：内容]；发表情包用 [${chat.realName}发送的表情包：图片URL]。`;
     } else {
         const members = chat.members.map(m => `${m.realName}(${m.groupNickname})`).join(', ');
         return `世界观设定：\n${worldBookContext}\n\n你正在扮演群聊中的所有成员：${members}。当前群名：${chat.name}。请随机选择成员发言，格式：[成员真名的消息：内容]。`;
