@@ -690,3 +690,83 @@ function setupFontLogic() {
         applyGlobalFont(db.fontUrl);
     }
 }
+
+// ==========================================
+// 👇 请把下面这些缺失的代码粘贴到 app.js 的最末尾 👇
+// ==========================================
+
+function loadSettingsToSidebar(type) {
+    if (type === 'group') {
+        const group = getChatById(currentChatId, 'group');
+        if (!group) return;
+        
+        // 渲染群聊设置表单
+        const form = document.getElementById('group-settings-form');
+        form.innerHTML = `
+            <div class="form-group"><label>群名称</label><input id="setting-group-name" value="${group.name}"></div>
+            <div class="form-group"><label>最大记忆轮数</label><input type="number" id="setting-group-max-memory" value="${group.maxMemory || 20}"></div>
+            <div class="form-group"><label>主题颜色</label>
+                <select id="setting-group-theme-color">
+                    ${Object.entries(COLOR_THEMES).map(([k,v]) => `<option value="${k}" ${group.theme===k?'selected':''}>${v.name}</option>`).join('')}
+                </select>
+            </div>
+            <div class="avatar-setting" style="justify-content:center;margin-top:15px;">
+                <img src="${group.avatar}" id="setting-group-avatar-preview" class="group-avatar-preview">
+                <p style="font-size:12px;color:#888;">(暂不支持修改头像)</p>
+            </div>
+        `;
+    } else {
+        const chat = getChatById(currentChatId, 'private');
+        if (!chat) return;
+        
+        // 渲染私聊设置表单
+        const form = document.getElementById('chat-settings-form');
+        form.innerHTML = `
+            <div class="form-group"><label>备注名</label><input name="remarkName" value="${chat.remarkName}"></div>
+            <div class="form-group"><label>我的称呼</label><input name="myName" value="${chat.myName}"></div>
+            <div class="form-group"><label>主题颜色</label>
+                <select name="theme">
+                    ${Object.entries(COLOR_THEMES).map(([k,v]) => `<option value="${k}" ${chat.theme===k?'selected':''}>${v.name}</option>`).join('')}
+                </select>
+            </div>
+        `;
+    }
+}
+
+async function savePrivateSettings() {
+    const form = document.getElementById('chat-settings-form');
+    // 防止在非私聊界面触发报错
+    if (!form || currentChatType !== 'private') return;
+
+    const formData = new FormData(form);
+    const chat = getChatById(currentChatId, 'private');
+    if (!chat) return;
+    
+    chat.remarkName = formData.get('remarkName');
+    chat.myName = formData.get('myName');
+    chat.theme = formData.get('theme');
+    
+    await saveData();
+    document.getElementById('chat-room-title').textContent = chat.remarkName;
+    renderChatList();
+    renderMessages(); // 刷新气泡颜色
+    // showToast('设置已保存'); // 防止频繁提示
+}
+
+// 补充：群聊设置保存逻辑
+document.getElementById('group-settings-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const group = getChatById(currentChatId, 'group');
+    if(!group) return;
+    
+    group.name = document.getElementById('setting-group-name').value;
+    group.theme = document.getElementById('setting-group-theme-color').value;
+    group.maxMemory = parseInt(document.getElementById('setting-group-max-memory').value) || 20;
+    
+    await saveData();
+    document.getElementById('chat-room-title').textContent = group.name;
+    renderChatList();
+    renderMessages();
+    showToast('群设置已保存');
+    document.getElementById('group-settings-sidebar').classList.remove('open');
+};
