@@ -1,4 +1,4 @@
-// --- 核心应用逻辑 (完整修复版) ---
+// --- 核心应用逻辑 (最终完整版) ---
 
 // 全局状态
 let db = {
@@ -25,7 +25,7 @@ let currentGroupAction = { type: null, recipients: [] };
 let currentStickerActionTarget = null;
 let selectedMessageIds = new Set();
 
-// 存储实例 (防崩溃检查)
+// 存储实例
 let storage;
 try {
     storage = new DataStorage();
@@ -48,18 +48,19 @@ async function initApp() {
         setInterval(updateClock, 30000);
         
         applyGlobalFont(db.fontUrl);
-        setupHomeScreen();
+        setupHomeScreen(); // 这里调用 renderCustomizeForm
         setupChatListScreen();
         applyHomeScreenMode(db.homeScreenMode);
         
         renderChatList();
         
-        // 初始化完成后，显示主屏幕
+        // 初始化成功，显示主屏幕
         switchScreen('home-screen');
+        console.log("初始化完成");
         
     } catch (e) {
         console.error("初始化崩溃:", e);
-        alert("初始化出错，请检查控制台: " + e.message);
+        alert("初始化出错: " + e.message);
     }
 }
 
@@ -171,6 +172,8 @@ function setupHomeScreen() {
     
     document.getElementById('day-mode-btn').onclick = () => applyHomeScreenMode('day');
     document.getElementById('night-mode-btn').onclick = () => applyHomeScreenMode('night');
+    
+    // 关键调用：这里会渲染自定义图标表单
     renderCustomizeForm();
     applyWallpaper(db.wallpaper);
 }
@@ -211,6 +214,42 @@ function applyGlobalFont(url) {
     }
     style.innerHTML = `@font-face { font-family: 'CustomFont'; src: url('${url}'); } :root { --font-family: 'CustomFont', sans-serif; }`;
 }
+
+// --- 缺失函数补全：自定义图标表单渲染 ---
+function renderCustomizeForm() {
+    const form = document.getElementById('customize-form');
+    if(!form) return;
+    form.innerHTML = '';
+    // DEFAULT_ICONS 来自 config.js
+    Object.entries(DEFAULT_ICONS).forEach(([key, val]) => {
+        const current = db.customIcons[key] || val.url;
+        const div = document.createElement('div');
+        div.className = 'icon-custom-item';
+        // 注意：这里 onclick 使用了 window.xxx，因为是 innerHTML 注入的
+        div.innerHTML = `
+            <img src="${current}" class="icon-preview">
+            <div style="flex:1">
+                <div>${val.name || '图标'}</div>
+                <input type="url" value="${db.customIcons[key]||''}" placeholder="输入图片URL" onchange="window.updateCustomIcon('${key}', this.value)">
+            </div>
+            <button type="button" onclick="window.resetCustomIcon('${key}')" class="reset-icon-btn">重置</button>
+        `;
+        form.appendChild(div);
+    });
+}
+
+// 暴露给 HTML 调用的全局函数
+window.updateCustomIcon = async (key, url) => {
+    if(url) db.customIcons[key] = url;
+    await saveData();
+    setupHomeScreen(); // 刷新主屏
+};
+
+window.resetCustomIcon = async (key) => {
+    delete db.customIcons[key];
+    await saveData();
+    setupHomeScreen(); // 刷新主屏
+};
 
 // --- 聊天列表 ---
 function setupChatListScreen() {
@@ -648,7 +687,6 @@ function setupGroupLogic() {
         document.getElementById('create-group-modal').classList.remove('visible');
     };
     
-    // 群聊设置保存
     const groupForm = document.getElementById('group-settings-form');
     if (groupForm) {
         groupForm.onsubmit = async (e) => {
