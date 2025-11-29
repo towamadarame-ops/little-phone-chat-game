@@ -209,6 +209,22 @@ function applyHomeScreenMode(mode) {
 }
 
 function applyWallpaper(url) {
+    // --- 新增代码开始 ---
+    // 强制设定为你的新壁纸链接
+    const myNewWallpaper = "https://i.pinimg.com/736x/bd/7c/5e/bd7c5e3d695da973c90768cf08511298.jpg";
+    
+    // 如果传入的 url 还是旧的那个（或者你想强制所有人用新的），就把 url 替换掉
+    // 这里的逻辑是：只要不是空的，就强制用新的。
+    // 你只需保存运行一次，看到背景变了，以后这几行就可以删掉了。
+    if (url) {
+        url = myNewWallpaper; 
+        // 顺便更新数据库，让它记住新的
+        if (typeof db !== 'undefined') {
+            db.wallpaper = myNewWallpaper;
+            saveData(); 
+        }
+    }
+    // --- 新增代码结束 ---
 
     if(url) {
         document.getElementById('home-screen').style.backgroundImage = `url(${url})`;
