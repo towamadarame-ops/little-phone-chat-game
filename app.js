@@ -571,11 +571,56 @@ function showChatContextMenu(id, type, x, y) {
 function setupChatLogic() {
     document.getElementById('send-message-btn').onclick = sendMessage;
     document.getElementById('get-reply-btn').onclick = getAiReply;
-    document.getElementById('chat-settings-btn').onclick = () => {
-        const sidebar = currentChatType === 'group' ? 'group-settings-sidebar' : 'chat-settings-sidebar';
-        loadSettingsToSidebar(currentChatType);
-        document.getElementById(sidebar).classList.add('open');
-    };
+    const settingsForm = document.getElementById('chat-settings-form');
+    if(settingsForm) {
+        settingsForm.onsubmit = async (e) => {
+            e.preventDefault();
+            if(currentChatType !== 'private') return;
+            
+            const chat = getChatById(currentChatId, 'private');
+            if (!chat) return;
+
+            const fd = new FormData(settingsForm);
+            
+            // 1. 保存普通文本字段
+            chat.remarkName = fd.get('remarkName');
+            chat.myName = fd.get('myName');
+            chat.persona = fd.get('persona');
+            chat.userPersona = fd.get('userPersona'); // 新增：保存用户人设
+            chat.theme = fd.get('theme');
+            chat.maxMemory = parseInt(fd.get('maxMemory')) || 20;
+
+            // 2. 保存世界书选择
+            const selectedBooks = Array.from(settingsForm.querySelectorAll('input[name="worldBookIds"]:checked')).map(cb => cb.value);
+            chat.worldBookIds = selectedBooks;
+
+            // 3. 处理图片上传 (需要压缩)
+            const charAvatarFile = document.getElementById('setting-char-avatar-input').files[0];
+            const myAvatarFile = document.getElementById('setting-my-avatar-input').files[0];
+            const chatBgFile = document.getElementById('setting-chat-bg-input').files[0];
+
+            if (charAvatarFile) chat.avatar = await compressImage(charAvatarFile, {maxWidth: 200});
+            if (myAvatarFile) chat.myAvatar = await compressImage(myAvatarFile, {maxWidth: 200});
+            
+            if (chatBgFile) {
+                chat.chatBg = await compressImage(chatBgFile, {maxWidth: 1080});
+            } else if (window.removeChatBg) {
+                delete chat.chatBg;
+            }
+
+            // 4. 保存并刷新
+            await saveData();
+            
+            // 更新界面元素
+            document.getElementById('chat-room-title').textContent = chat.remarkName;
+            document.getElementById('chat-room-screen').style.backgroundImage = chat.chatBg ? `url(${chat.chatBg})` : '';
+            renderChatList();
+            renderMessages(); // 刷新消息以更新头像
+            
+            showToast('设置已保存');
+            document.getElementById('chat-settings-sidebar').classList.remove('open');
+        };
+    }
     document.querySelectorAll('#clear-chat-history-btn, #clear-group-chat-history-btn').forEach(btn => {
         btn.onclick = async () => {
             if(confirm('确定清空记录？')) {
@@ -589,8 +634,7 @@ function setupChatLogic() {
     });
     const settingsForm = document.getElementById('chat-settings-form');
     if(settingsForm) {
-        settingsForm.addEventListener('change', savePrivateSettings);
-    }
+            }
     
     document.getElementById('message-area').addEventListener('click', (e) => {
         const voiceBubble = e.target.closest('.voice-bubble');
@@ -786,6 +830,14 @@ function generateSystemPrompt(chat) {
     }
 
     if(chat.type === 'private') {
+        // --- 修改开始 ---
+        const userPersonaText = chat.userPersona ? `\n我的设定：${chat.userPersona}` : '';
+        
+        return `世界观设定：\n${worldBookContext}\n\n你正在扮演 ${chat.realName}。我的名字是 ${chat.myName}。${userPersonaText}\n你的设定是：${chat.persona || '无'}。\n\n请完全沉浸，不要出戏。格式要求：普通消息用 [${chat.realName}的消息：内容]；发表情包用 [${chat.realName}发送的表情包：图片URL]。`;
+        // --- 修改结束 ---
+    } else {
+
+    if(chat.type === 'private') {
         return `世界观设定：\n${worldBookContext}\n\n你正在扮演 ${chat.realName}。我的名字是 ${chat.myName}。你的设定是：${chat.persona || '无'}。请完全沉浸，格式要求：普通消息用 [${chat.realName}的消息：内容]；发表情包用 [${chat.realName}发送的表情包：图片URL]。`;
     } else {
         const members = chat.members.map(m => `${m.realName}(${m.groupNickname})`).join(', ');
@@ -967,18 +1019,90 @@ function loadSettingsToSidebar(type) {
         const chat = getChatById(currentChatId, 'private');
         if (!chat) return;
         
+        // 生成世界书复选框列表
+        let worldBookOptions = '';
+        if (db.worldBooks.length > 0) {
+            worldBookOptions = '<div class="form-group"><label>关联世界书</label><div style="max-height:150px;overflow-y:auto;background:#f9f9f9;padding:10px;border-radius:10px;">';
+            db.worldBooks.forEach(wb => {
+                const isChecked = chat.worldBookIds && chat.worldBookIds.includes(wb.id) ? 'checked' : '';
+                worldBookOptions += `
+                    <div style="display:flex;align-items:center;margin-bottom:8px;">
+                        <input type="checkbox" name="worldBookIds" value="${wb.id}" ${isChecked} style="width:auto;margin-right:10px;">
+                        <span>${wb.name}</span>
+                    </div>`;
+            });
+            worldBookOptions += '</div></div>';
+        } else {
+            worldBookOptions = '<div class="form-group"><label>关联世界书</label><div style="font-size:12px;color:#999;">暂无世界书，请在主页添加</div></div>';
+        }
+
         const form = document.getElementById('chat-settings-form');
         form.innerHTML = `
-            <div class="form-group"><label>备注名</label><input name="remarkName" value="${chat.remarkName}"></div>
-            <div class="form-group"><label>我的称呼</label><input name="myName" value="${chat.myName}"></div>
-            <div class="form-group"><label>主题颜色</label>
+            <!-- 1. 头像设置区域 (并排显示) -->
+            <div style="display:flex; justify-content:space-around; margin-bottom:20px;">
+                <div style="text-align:center;">
+                    <label style="font-size:12px;display:block;margin-bottom:5px;">对方头像</label>
+                    <img src="${chat.avatar}" id="setting-char-avatar-preview" class="avatar-preview" style="width:60px;height:60px;" onclick="document.getElementById('setting-char-avatar-input').click()">
+                    <input type="file" id="setting-char-avatar-input" style="display:none;" accept="image/*">
+                </div>
+                <div style="text-align:center;">
+                    <label style="font-size:12px;display:block;margin-bottom:5px;">我的头像</label>
+                    <img src="${chat.myAvatar || 'https://i.postimg.cc/GtbTnxhP/o-o-1.jpg'}" id="setting-my-avatar-preview" class="avatar-preview" style="width:60px;height:60px;" onclick="document.getElementById('setting-my-avatar-input').click()">
+                    <input type="file" id="setting-my-avatar-input" style="display:none;" accept="image/*">
+                </div>
+            </div>
+
+            <!-- 2. 基础信息 -->
+            <div class="form-group"><label>角色备注名</label><input name="remarkName" value="${chat.remarkName}"></div>
+            <div class="form-group"><label>我的称呼 (对方怎么叫我)</label><input name="myName" value="${chat.myName}"></div>
+            
+            <!-- 3. 人设区域 -->
+            <div class="form-group"><label>角色人设 (System Prompt)</label><textarea name="persona" rows="4" placeholder="定义角色的性格、背景...">${chat.persona || ''}</textarea></div>
+            <div class="form-group"><label>我的人设 (可选)</label><textarea name="userPersona" rows="3" placeholder="定义我在故事中的设定...">${chat.userPersona || ''}</textarea></div>
+
+            <!-- 4. 世界书 -->
+            ${worldBookOptions}
+
+            <!-- 5. 样式与背景 -->
+            <div class="form-group"><label>主题气泡颜色</label>
                 <select name="theme">
                     ${Object.entries(COLOR_THEMES).map(([k,v]) => `<option value="${k}" ${chat.theme===k?'selected':''}>${v.name}</option>`).join('')}
                 </select>
             </div>
+            
+            <div class="form-group"><label>聊天背景图</label>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <img src="${chat.chatBg || ''}" id="setting-chat-bg-preview" style="width:40px;height:40px;border-radius:8px;object-fit:cover;background:#eee;border:1px solid #ddd;">
+                    <input type="file" id="setting-chat-bg-input" style="display:none;" accept="image/*">
+                    <button type="button" class="btn btn-secondary" style="margin:0;padding:8px 15px;width:auto;" onclick="document.getElementById('setting-chat-bg-input').click()">选择图片</button>
+                    <button type="button" class="btn btn-neutral" style="margin:0;padding:8px 15px;width:auto;" onclick="document.getElementById('setting-chat-bg-preview').src='';window.removeChatBg=true;">清除</button>
+                </div>
+            </div>
+
+            <div class="form-group"><label>最大记忆轮数</label><input type="number" name="maxMemory" value="${chat.maxMemory || 20}"></div>
+
+            <!-- 6. 保存按钮 -->
+            <button type="submit" class="btn btn-primary">保存设置</button>
         `;
+
+        // 绑定预览逻辑
+        const bindPreview = (inputId, imgId) => {
+            document.getElementById(inputId).onchange = (e) => {
+                const file = e.target.files[0];
+                if(file) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => document.getElementById(imgId).src = evt.target.result;
+                    reader.readAsDataURL(file);
+                }
+            };
+        };
+        bindPreview('setting-char-avatar-input', 'setting-char-avatar-preview');
+        bindPreview('setting-my-avatar-input', 'setting-my-avatar-preview');
+        bindPreview('setting-chat-bg-input', 'setting-chat-bg-preview');
+        window.removeChatBg = false; // 重置清除标记
     }
 }
+
 
 async function savePrivateSettings() {
     const form = document.getElementById('chat-settings-form');
