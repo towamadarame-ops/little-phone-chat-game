@@ -569,58 +569,18 @@ function showChatContextMenu(id, type, x, y) {
 
 // --- 聊天室 ---
 function setupChatLogic() {
+    // 1. 发送与回复按钮
     document.getElementById('send-message-btn').onclick = sendMessage;
     document.getElementById('get-reply-btn').onclick = getAiReply;
-    const settingsForm = document.getElementById('chat-settings-form');
-    if(settingsForm) {
-        settingsForm.onsubmit = async (e) => {
-            e.preventDefault();
-            if(currentChatType !== 'private') return;
-            
-            const chat = getChatById(currentChatId, 'private');
-            if (!chat) return;
 
-            const fd = new FormData(settingsForm);
-            
-            // 1. 保存普通文本字段
-            chat.remarkName = fd.get('remarkName');
-            chat.myName = fd.get('myName');
-            chat.persona = fd.get('persona');
-            chat.userPersona = fd.get('userPersona'); // 新增：保存用户人设
-            chat.theme = fd.get('theme');
-            chat.maxMemory = parseInt(fd.get('maxMemory')) || 20;
+    // 2. 打开设置侧边栏按钮
+    document.getElementById('chat-settings-btn').onclick = () => {
+        const sidebar = currentChatType === 'group' ? 'group-settings-sidebar' : 'chat-settings-sidebar';
+        loadSettingsToSidebar(currentChatType);
+        document.getElementById(sidebar).classList.add('open');
+    };
 
-            // 2. 保存世界书选择
-            const selectedBooks = Array.from(settingsForm.querySelectorAll('input[name="worldBookIds"]:checked')).map(cb => cb.value);
-            chat.worldBookIds = selectedBooks;
-
-            // 3. 处理图片上传 (需要压缩)
-            const charAvatarFile = document.getElementById('setting-char-avatar-input').files[0];
-            const myAvatarFile = document.getElementById('setting-my-avatar-input').files[0];
-            const chatBgFile = document.getElementById('setting-chat-bg-input').files[0];
-
-            if (charAvatarFile) chat.avatar = await compressImage(charAvatarFile, {maxWidth: 200});
-            if (myAvatarFile) chat.myAvatar = await compressImage(myAvatarFile, {maxWidth: 200});
-            
-            if (chatBgFile) {
-                chat.chatBg = await compressImage(chatBgFile, {maxWidth: 1080});
-            } else if (window.removeChatBg) {
-                delete chat.chatBg;
-            }
-
-            // 4. 保存并刷新
-            await saveData();
-            
-            // 更新界面元素
-            document.getElementById('chat-room-title').textContent = chat.remarkName;
-            document.getElementById('chat-room-screen').style.backgroundImage = chat.chatBg ? `url(${chat.chatBg})` : '';
-            renderChatList();
-            renderMessages(); // 刷新消息以更新头像
-            
-            showToast('设置已保存');
-            document.getElementById('chat-settings-sidebar').classList.remove('open');
-        };
-    }
+    // 3. 清空记录按钮逻辑
     document.querySelectorAll('#clear-chat-history-btn, #clear-group-chat-history-btn').forEach(btn => {
         btn.onclick = async () => {
             if(confirm('确定清空记录？')) {
@@ -632,10 +592,69 @@ function setupChatLogic() {
             }
         }
     });
+
+    // 4. 私聊设置表单保存逻辑 (这里是刚才修改的核心部分)
+    // 注意：这里只声明一次 settingsForm
     const settingsForm = document.getElementById('chat-settings-form');
     if(settingsForm) {
+        // 使用 onsubmit 而不是 addEventListener('change')
+        settingsForm.onsubmit = async (e) => {
+            e.preventDefault();
+            if(currentChatType !== 'private') return;
+            
+            const chat = getChatById(currentChatId, 'private');
+            if (!chat) return;
+
+            const fd = new FormData(settingsForm);
+            
+            // (1) 保存普通文本字段
+            chat.remarkName = fd.get('remarkName');
+            chat.myName = fd.get('myName');
+            chat.persona = fd.get('persona');
+            chat.userPersona = fd.get('userPersona'); // 用户人设
+            chat.theme = fd.get('theme');
+            chat.maxMemory = parseInt(fd.get('maxMemory')) || 20;
+
+            // (2) 保存世界书选择
+            const selectedBooks = Array.from(settingsForm.querySelectorAll('input[name="worldBookIds"]:checked')).map(cb => cb.value);
+            chat.worldBookIds = selectedBooks;
+
+            // (3) 处理图片上传 (需要压缩)
+            // 注意：需要检查元素是否存在，防止报错
+            const charAvatarInput = document.getElementById('setting-char-avatar-input');
+            const myAvatarInput = document.getElementById('setting-my-avatar-input');
+            const chatBgInput = document.getElementById('setting-chat-bg-input');
+
+            if (charAvatarInput && charAvatarInput.files[0]) {
+                chat.avatar = await compressImage(charAvatarInput.files[0], {maxWidth: 200});
             }
+            if (myAvatarInput && myAvatarInput.files[0]) {
+                chat.myAvatar = await compressImage(myAvatarInput.files[0], {maxWidth: 200});
+            }
+            
+            if (chatBgInput && chatBgInput.files[0]) {
+                chat.chatBg = await compressImage(chatBgInput.files[0], {maxWidth: 1080});
+            } else if (window.removeChatBg) {
+                // 如果用户点击了清除背景
+                delete chat.chatBg;
+            }
+
+            // (4) 保存并刷新
+            await saveData();
+            
+            // 更新界面元素
+            document.getElementById('chat-room-title').textContent = chat.remarkName;
+            document.getElementById('chat-room-screen').style.backgroundImage = chat.chatBg ? `url(${chat.chatBg})` : '';
+            
+            renderChatList();
+            renderMessages(); // 刷新消息以更新头像
+            
+            showToast('设置已保存');
+            document.getElementById('chat-settings-sidebar').classList.remove('open');
+        };
+    }
     
+    // 5. 消息区域点击事件 (语音转文字展开、转账点击)
     document.getElementById('message-area').addEventListener('click', (e) => {
         const voiceBubble = e.target.closest('.voice-bubble');
         if(voiceBubble) {
