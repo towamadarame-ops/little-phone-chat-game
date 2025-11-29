@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AI ChatOS</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="style.css">
+    <!-- 第三方数据库库 -->
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+</head>
+<body>
+    <div class="phone-screen">
+        <!-- 主屏幕 -->
+        <div id="home-screen" class="screen active"></div>
+        
+        <!-- 聊天列表 -->
+        <div id="chat-list-screen" class="screen">
+            <header class="app-header">
+                <button class="back-btn" data-target="home-screen">‹</button>
+                <div class="title-container"><h1 class="title">消息</h1></div>
+                <div class="action-btn-group">
+                    <button class="action-btn" id="create-group-btn">群聊</button>
+                    <button class="action-btn" id="add-chat-btn">+</button>
+                </div>
+            </header>
+            <main class="content">
+                <ul class="list-container" id="chat-list-container"></ul>
+                <div class="placeholder-text" id="no-chats-placeholder" style="display: none;">
+                    <p>暂无消息</p>
+                    <p>点击右上角“+”开始新的对话</p>
+                </div>
+            </main>
+        </div>
+
+        <!-- 聊天室 -->
+        <div id="chat-room-screen" class="screen">
+            <header class="app-header" id="chat-room-header-default">
+                <button class="back-btn" data-target="chat-list-screen">‹</button>
+                <div class="title-container">
+                    <h1 class="title" id="chat-room-title">...</h1>
+                    <div class="subtitle" id="chat-room-subtitle">
+                        <div class="online-indicator"></div>
+                        <span id="chat-room-status-text">在线</span>
+                    </div>
+                </div>
+                <button class="action-btn" id="chat-settings-btn">⚙️</button>
+            </header>
+            <header class="app-header" id="chat-room-header-select" style="display: none;">
+                <button class="action-btn" id="cancel-multi-select-btn">取消</button>
+                <div class="title-container"><h1 class="title" id="multi-select-title">选择消息</h1></div>
+                <div class="placeholder"></div>
+            </header>
+            <main class="content">
+                <div class="message-area" id="message-area"></div>
+                <div class="typing-indicator" id="typing-indicator"></div>
+            </main>
+            <div class="chat-input-wrapper">
+                <div id="sticker-bar">
+                    <!-- 工具栏按钮 -->
+                    <button class="sticker-bar-btn" id="sticker-toggle-btn" title="表情包"><svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg></button>
+                    <button class="sticker-bar-btn" id="photo-video-btn" title="照片/视频"><svg viewBox="0 0 24 24"><path d="M4,4H7L9,2H15L17,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z"/></svg></button>
+                    <button class="sticker-bar-btn" id="image-recognition-btn" title="发送图片给AI"><svg viewBox="0 0 24 24"><path d="M21.58,16.09L19.66,18L18.24,16.58L21,13.83C21.39,13.44 22,13.44 22.39,13.83L23.17,14.61C23.56,15 23.56,15.64 23.17,16.03L21.58,17.62M20.13,12.25L18.71,13.66L20.41,15.36L21.83,13.94L20.13,12.25M5.93,19H5C3.9,19 3,18.1 3,17V5C3,3.9 3.9,3 5,3H19C20.1,3 21,3.9 21,5V11.08L19,13.08V5H5V17H5.93L13.5,9.43L16.29,12.21L12.08,16.42L5.93,19Z"/></svg></button>
+                    <button class="sticker-bar-btn" id="voice-message-btn" title="语音"><svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg></button>
+                    <button class="sticker-bar-btn" id="wallet-btn" title="转账"><svg viewBox="0 0 24 24"><path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V8H20V18ZM4 6H20V6H4Z"/></svg></button>
+                    <button class="sticker-bar-btn" id="gift-btn" title="礼物"><svg viewBox="0 0 24 24"><path d="M20,8L12,13L4,8V6H20M20,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6A2,2 0 0,0 20,4M12.5,18C12.5,17.29 12.17,16.65 11.64,16.27C12.17,15.89 12.5,15.26 12.5,14.55C12.5,13.6 11.83,12.79 11,12.58V12H13V10H11V8H13V6H11V5C11,4.45 10.55,4 10,4H8C7.45,4 7,4.45 7,5V6H9V8H7V10H9V12H7V12.58C6.17,12.79 5.5,13.6 5.5,14.55C5.5,15.26 5.83,15.89 6.36,16.27C5.83,16.65 5.5,17.29 5.5,18H12.5Z"/></svg></button>
+                    <button class="sticker-bar-btn" id="time-skip-btn" title="系统旁白"><svg viewBox="0 0 24 24"><path d="M4 5v14l7-7-7-7zm9 0v14l7-7-7-7z"></path></svg></button>
+                </div>
+                <div class="message-input-area" id="message-input-default">
+                    <input type="text" id="message-input" placeholder="输入消息...">
+                    <button id="send-message-btn" class="icon-btn send-btn">➤</button>
+                    <button id="get-reply-btn" class="icon-btn" title="获取AI回复"><svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 1,1 20,12A8,8 0 0,1 12,20M16.24,7.76C15.07,6.58 13.53,6 12,6V12L7.76,16.24C10.1,18.58 13.9,18.58 16.24,16.24C18.58,13.9 18.58,10.1 16.24,7.76Z"/></svg></button>
+                </div>
+                <div class="message-input-area" id="message-edit-bar" style="display: none;">
+                    <input type="text" id="message-edit-input">
+                    <button id="save-edit-btn" class="icon-btn send-btn">✓</button>
+                    <button id="cancel-edit-btn" class="icon-btn" style="background-color: #aaa;">✗</button>
+                </div>
+            </div>
+            <div id="multi-select-bar"><span id="select-count">已选择 0 项</span><button class="btn btn-danger" id="delete-selected-btn" style="width: auto; padding: 8px 16px;">删除</button></div>
+            <div id="sticker-modal">
+                <div class="header"><span>我的表情</span><button class="btn btn-primary btn-small" id="add-new-sticker-btn">添加</button></div>
+                <div class="sticker-grid" id="sticker-grid-container"></div>
+            </div>
+        </div>
+
+        <!-- 其他子页面容器 (动态加载内容) -->
+        <div id="world-book-screen" class="screen"></div>
+        <div id="edit-world-book-screen" class="screen"></div>
+        <div id="api-settings-screen" class="screen"></div>
+        <div id="wallpaper-screen" class="screen"></div>
+        <div id="font-settings-screen" class="screen"></div>
+        <div id="customize-screen" class="screen"></div>
+        <div id="tutorial-screen" class="screen"></div>
+
+        <!-- 各种模态框和侧边栏 -->
+        <div id="toast-notification" class="toast"></div>
+        <input type="file" id="image-upload-input" accept="image/*" style="display:none;">
+        
+        <!-- 侧边栏设置 -->
+        <div id="chat-settings-sidebar" class="settings-sidebar">
+            <div class="header">聊天设置</div>
+            <div class="content"><form id="chat-settings-form"></form><hr style="border:none; border-top:1px solid #eee; margin: 20px 0;"><button type="button" class="btn btn-danger" id="clear-chat-history-btn">清空聊天记录</button></div>
+        </div>
+        <div id="group-settings-sidebar" class="settings-sidebar">
+            <div class="header">群聊设置</div>
+            <div class="content"><form id="group-settings-form"></form><hr style="border:none; border-top:1px solid #eee; margin: 20px 0;"><button type="button" class="btn btn-danger" id="clear-group-chat-history-btn">清空聊天记录</button></div>
+        </div>
+
+        <!-- 所有的弹窗 (Modal) -->
+        <div id="add-char-modal" class="modal-overlay">
+            <div class="modal-window"><h3>新角色</h3><form id="add-char-form"><div class="form-group"><label>角色姓名</label><input type="text" id="char-real-name" required></div><div class="form-group"><label>备注(昵称)</label><input type="text" id="char-remark-name" required></div><div class="form-group"><label>对我的称呼</label><input type="text" id="my-name-for-char" required></div><button type="submit" class="btn btn-primary">创建</button></form></div>
+        </div>
+        <div id="create-group-modal" class="modal-overlay">
+            <div class="modal-window"><h3>创建群聊</h3><form id="create-group-form"><div class="form-group"><label>选择成员</label><ul id="member-selection-list" class="member-selection-list"></ul></div><div class="form-group"><label>群名称</label><input type="text" id="group-name-input" required></div><button type="submit" class="btn btn-primary">创建</button></form></div>
+        </div>
+        
+        <!-- 其他功能模态框占位，具体内容由JS动态管理或保持简洁 -->
+        <div id="add-sticker-modal" class="modal-overlay">
+            <div class="modal-window"><h3 id="add-sticker-modal-title">添加表情</h3><form id="add-sticker-form"><input type="hidden" id="sticker-edit-id"><div id="sticker-preview"><span>预览</span></div><div class="form-group"><label>名称</label><input type="text" id="sticker-name" required></div><div class="form-group"><label>URL</label><input type="url" id="sticker-url-input"></div><p style="text-align:center;color:#888;">或</p><input type="file" id="sticker-file-upload" accept="image/*" style="display:none;"><label for="sticker-file-upload" class="btn btn-secondary">本地上传</label><button type="submit" class="btn btn-primary">保存</button></form></div>
+        </div>
+        
+        <!-- 这里的模态框结构和原版一致，为了节省篇幅，通过JS ID控制显隐 -->
+        <div id="send-voice-modal" class="modal-overlay"><div class="modal-window"><h3>发送语音</h3><form id="send-voice-form"><div class="form-group"><textarea id="voice-text-input" placeholder="输入语音内容..." required rows="4"></textarea></div><div style="text-align:center;color:#888;margin-bottom:10px;">预计时长: <span id="voice-duration-preview">0"</span></div><button type="submit" class="btn btn-primary">发送</button></form></div></div>
+        <div id="send-pv-modal" class="modal-overlay"><div class="modal-window"><h3>发送照片/视频</h3><form id="send-pv-form"><div class="form-group"><textarea id="pv-text-input" placeholder="描述内容..." required rows="4"></textarea></div><button type="submit" class="btn btn-primary">发送</button></form></div></div>
+        <div id="send-transfer-modal" class="modal-overlay"><div class="modal-window"><h3>转账</h3><form id="send-transfer-form"><div class="form-group"><label>金额</label><input type="number" id="transfer-amount-input" required step="0.01"></div><div class="form-group"><label>备注</label><input type="text" id="transfer-remark-input"></div><button type="submit" class="btn btn-primary">发送</button></form></div></div>
+        <div id="send-gift-modal" class="modal-overlay"><div class="modal-window"><h3>送礼物</h3><form id="send-gift-form"><div class="form-group"><textarea id="gift-description-input" placeholder="礼物描述..." required rows="4"></textarea></div><button type="submit" class="btn btn-primary">发送</button></form></div></div>
+        <div id="time-skip-modal" class="modal-overlay"><div class="modal-window"><h3>系统旁白/场景</h3><form id="time-skip-form"><div class="form-group"><textarea id="time-skip-input" placeholder="例如：第二天清晨..." required rows="4"></textarea></div><button type="submit" class="btn btn-primary">发送</button></form></div></div>
+        
+        <div id="world-book-selection-modal" class="modal-overlay"><div class="modal-window"><h3>关联世界书</h3><ul id="world-book-selection-list"></ul><button class="btn btn-primary" id="save-world-book-selection-btn" style="margin-top:20px;">确认</button></div></div>
+        <div id="group-recipient-selection-modal" class="modal-overlay"><div class="modal-window"><h3 id="group-recipient-selection-title">选择对象</h3><ul id="group-recipient-selection-list"></ul><button class="btn btn-primary" id="confirm-group-recipient-btn" style="margin-top:20px;">确认</button></div></div>
+        <div id="edit-group-member-modal" class="modal-overlay"><div class="modal-window"><h3 id="edit-group-member-title">编辑成员</h3><form id="edit-group-member-form"><input type="hidden" id="editing-member-id"><div class="avatar-setting" style="justify-content:center;"><img src="" id="edit-member-avatar-preview" class="avatar-preview"><input type="file" id="edit-member-avatar-upload" style="display:none;"></div><div class="form-group"><label>群昵称</label><input type="text" id="edit-member-group-nickname" required></div><div class="form-group"><label>真名</label><input type="text" id="edit-member-real-name" required></div><div class="form-group"><label>人设</label><textarea id="edit-member-persona"></textarea></div><button type="submit" class="btn btn-primary">保存</button></form></div></div>
+        <div id="invite-member-modal" class="modal-overlay"><div class="modal-window"><h3>邀请成员</h3><ul id="invite-member-selection-list"></ul><button class="btn btn-primary" id="confirm-invite-btn" style="margin-top:20px;">确认</button></div></div>
+        <div id="create-member-for-group-modal" class="modal-overlay"><div class="modal-window"><h3>创建并加入</h3><form id="create-member-for-group-form"><div class="avatar-setting" style="justify-content:center;"><img src="https://i.postimg.cc/Y96LPskq/o-o-2.jpg" id="create-group-member-avatar-preview" class="avatar-preview"><input type="file" id="create-group-member-avatar-upload" style="display:none;"></div><div class="form-group"><label>群昵称</label><input type="text" id="create-group-member-nickname" required></div><div class="form-group"><label>真名</label><input type="text" id="create-group-member-realname" required></div><div class="form-group"><label>人设</label><textarea id="create-group-member-persona"></textarea></div><button type="submit" class="btn btn-primary">创建</button></form></div></div>
+
+        <!-- Action Sheets -->
+        <div id="sticker-actionsheet" class="action-sheet-overlay"><div class="action-sheet"><button class="action-sheet-button" id="edit-sticker-btn">编辑</button><button class="action-sheet-button danger" id="delete-sticker-btn">删除</button></div></div>
+        <div id="receive-transfer-actionsheet" class="action-sheet-overlay"><div class="action-sheet"><button class="action-sheet-button" id="accept-transfer-btn">接收</button><button class="action-sheet-button danger" id="return-transfer-btn">退回</button></div></div>
+        <div id="add-member-actionsheet" class="action-sheet-overlay"><div class="action-sheet"><button class="action-sheet-button" id="invite-existing-member-btn">邀请现有角色</button><button class="action-sheet-button" id="create-new-member-btn">创建新角色入群</button></div></div>
+    </div>
+    <input type="file" id="import-data-input" accept=".ee" style="display: none;">
+
+    <!-- 顺序加载 JS 文件 -->
+    <script src="utils.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
