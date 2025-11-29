@@ -152,9 +152,23 @@
     </div>
     <input type="file" id="import-data-input" accept=".ee" style="display: none;">
 
-    <!-- 顺序加载 JS 文件 -->
-    <script src="utils.js"></script>
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+   <!-- 顺序加载 JS 文件 -->
+    <script src="utils.js" onload="console.log('✅ utils.js 加载成功')" onerror="alert('❌ utils.js 加载失败，请检查文件名大小写！')"></script>
+    <script src="config.js" onload="console.log('✅ config.js 加载成功')" onerror="alert('❌ config.js 加载失败，请检查文件名大小写！')"></script>
+    <script src="app.js" onload="console.log('✅ app.js 加载成功')" onerror="alert('❌ app.js 加载失败，请检查文件名大小写！')"></script>
+    
+    <script>
+        // 手动尝试启动
+        window.addEventListener('load', function() {
+            console.log('页面加载完毕，尝试启动...');
+            if (typeof initApp === 'function') {
+                initApp(); 
+                console.log('initApp 被调用了');
+            } else {
+                console.error('initApp 函数不存在！可能是 app.js 没加载对。');
+                alert('系统启动失败：找不到启动函数');
+            }
+        });
+    </script>
 </body>
 </html>
