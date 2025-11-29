@@ -1,4 +1,4 @@
-// --- 核心应用逻辑 (最终完整版) ---
+// --- 核心应用逻辑 (API与世界书修复版) ---
 
 // 全局状态
 let db = {
@@ -23,6 +23,7 @@ let editingMessageId = null;
 let currentTransferMessageId = null;
 let currentGroupAction = { type: null, recipients: [] };
 let currentStickerActionTarget = null;
+let currentEditingWorldBookId = null; // 新增：当前编辑的世界书ID
 let selectedMessageIds = new Set();
 
 // 存储实例
@@ -42,19 +43,18 @@ async function initApp() {
     try {
         await loadData();
         injectDynamicHTML();
-        setupEventListeners();
+        setupEventListeners(); // 这里会绑定 API 按钮和世界书逻辑
         
         updateClock();
         setInterval(updateClock, 30000);
         
         applyGlobalFont(db.fontUrl);
-        setupHomeScreen(); // 这里调用 renderCustomizeForm
+        setupHomeScreen();
         setupChatListScreen();
         applyHomeScreenMode(db.homeScreenMode);
         
         renderChatList();
         
-        // 初始化成功，显示主屏幕
         switchScreen('home-screen');
         console.log("初始化完成");
         
@@ -76,10 +76,12 @@ async function loadData() {
     if (!db.groups) db.groups = [];
     if (!db.customIcons) db.customIcons = {};
     if (!db.myStickers) db.myStickers = [];
+    if (!db.worldBooks) db.worldBooks = [];
     
     db.characters.forEach(c => {
         if (!c.history) c.history = [];
         if (c.isPinned === undefined) c.isPinned = false;
+        if (!c.worldBookIds) c.worldBookIds = [];
     });
 }
 
@@ -97,11 +99,22 @@ function switchScreen(targetId) {
     });
 }
 
+// 🟢 修复点1：补全世界书和其他页面的 HTML 注入
 function injectDynamicHTML() {
-    const apiHTML = `<header class="app-header"><button class="back-btn" data-target="home-screen">‹</button><div class="title-container"><h1 class="title">API 设置</h1></div><div class="placeholder"></div></header><main class="content"><form id="api-form"><div class="form-group"><label>服务商</label><select id="api-provider" name="provider"><option value="newapi">自定义 (OpenAI格式)</option><option value="deepseek">DeepSeek</option><option value="claude">Claude</option><option value="gemini">Gemini</option></select></div><div class="form-group"><label>API 地址</label><input type="url" id="api-url" name="url" placeholder="https://..." required></div><div class="form-group"><label>密钥 (Key)</label><input type="password" id="api-key" name="key" required></div><button type="button" class="btn btn-secondary" id="fetch-models-btn"><span class="btn-text">拉取模型列表</span><div class="spinner"></div></button><div class="form-group"><label>模型</label><select id="api-model" name="model" required><option value="">请先拉取...</option></select></div><button type="submit" class="btn btn-primary">保存设置</button></form></main>`;
+    const apiHTML = `<header class="app-header"><button class="back-btn" data-target="home-screen">‹</button><div class="title-container"><h1 class="title">API 设置</h1></div><div class="placeholder"></div></header><main class="content"><form id="api-form"><div class="form-group"><label>服务商</label><select id="api-provider" name="provider"><option value="newapi">自定义 (OpenAI格式)</option><option value="deepseek">DeepSeek</option><option value="claude">Claude</option><option value="gemini">Gemini</option></select></div><div class="form-group"><label>API 地址</label><input type="url" id="api-url" name="url" placeholder="https://..." required></div><div class="form-group"><label>密钥 (Key)</label><input type="password" id="api-key" name="key" required></div><button type="button" class="btn btn-secondary" id="fetch-models-btn"><span class="btn-text">点击拉取模型列表</span><div class="spinner"></div></button><div class="form-group"><label>模型</label><select id="api-model" name="model" required><option value="">请先拉取...</option></select></div><button type="submit" class="btn btn-primary">保存设置</button></form></main>`;
+    
     const wallpaperHTML = `<header class="app-header"><button class="back-btn" data-target="home-screen">‹</button><div class="title-container"><h1 class="title">壁纸</h1></div><div class="placeholder"></div></header><main class="content"><div class="wallpaper-preview" id="wallpaper-preview" style="border:3px dashed #ccc;height:300px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;background-size:cover;background-position:center;">当前预览</div><input type="file" id="wallpaper-upload" accept="image/*" style="display: none;"><label for="wallpaper-upload" class="btn btn-primary">更换壁纸</label></main>`;
+    
+    // 世界书列表页
+    const worldBookHTML = `<header class="app-header"><button class="back-btn" data-target="home-screen">‹</button><div class="title-container"><h1 class="title">世界书</h1></div><button class="action-btn" id="add-world-book-btn">+</button></header><main class="content"><ul class="list-container" id="world-book-list-container"></ul><div class="placeholder-text" id="no-world-books-placeholder" style="display:none;">暂无设定<br>点击右上角添加</div></main>`;
+    
+    // 世界书编辑页
+    const editWorldBookHTML = `<header class="app-header"><button class="back-btn" data-target="world-book-screen">‹</button><div class="title-container"><h1 class="title">编辑词条</h1></div><div class="placeholder"></div></header><main class="content"><form id="edit-world-book-form"><div class="form-group"><label>名称</label><input type="text" id="world-book-name" required></div><div class="form-group"><label>内容</label><textarea id="world-book-content" rows="8" required placeholder="输入设定内容..."></textarea></div><div class="form-group"><label>位置</label><select id="world-book-position"><option value="before">前置 (Before)</option><option value="after">后置 (After)</option></select></div><button type="submit" class="btn btn-primary">保存条目</button></form></main>`;
+
     const customizeHTML = `<header class="app-header"><button class="back-btn" data-target="home-screen">‹</button><div class="title-container"><h1 class="title">自定义图标</h1></div><div class="placeholder"></div></header><main class="content"><form id="customize-form"></form></main>`;
+    
     const tutorialHTML = `<header class="app-header"><button class="back-btn" data-target="home-screen">‹</button><div class="title-container"><h1 class="title">使用说明</h1></div><div class="placeholder"></div></header><main class="content" id="tutorial-content-area"></main>`;
+    
     const fontHTML = `<header class="app-header"><button class="back-btn" data-target="home-screen">‹</button><div class="title-container"><h1 class="title">字体</h1></div><div class="placeholder"></div></header><main class="content"><form id="font-settings-form"><div class="form-group"><label>字体链接 (WOFF2/TTF)</label><input type="url" id="font-url" placeholder="https://..." required></div><button type="submit" class="btn btn-primary">应用</button><button type="button" class="btn btn-neutral" id="restore-default-font-btn" style="margin-top:15px;">恢复默认</button></form></main>`;
 
     const setHTML = (id, html) => {
@@ -111,6 +124,8 @@ function injectDynamicHTML() {
 
     setHTML('api-settings-screen', apiHTML);
     setHTML('wallpaper-screen', wallpaperHTML);
+    setHTML('world-book-screen', worldBookHTML);
+    setHTML('edit-world-book-screen', editWorldBookHTML);
     setHTML('customize-screen', customizeHTML);
     setHTML('tutorial-screen', tutorialHTML);
     setHTML('font-settings-screen', fontHTML);
@@ -140,6 +155,7 @@ function setupEventListeners() {
 
     setupApiLogic();
     setupWallpaperLogic();
+    setupWorldBookLogic(); // 绑定世界书逻辑
     setupChatLogic();
     setupStickerLogic();
     setupToolLogic();
@@ -173,7 +189,6 @@ function setupHomeScreen() {
     document.getElementById('day-mode-btn').onclick = () => applyHomeScreenMode('day');
     document.getElementById('night-mode-btn').onclick = () => applyHomeScreenMode('night');
     
-    // 关键调用：这里会渲染自定义图标表单
     renderCustomizeForm();
     applyWallpaper(db.wallpaper);
 }
@@ -215,17 +230,15 @@ function applyGlobalFont(url) {
     style.innerHTML = `@font-face { font-family: 'CustomFont'; src: url('${url}'); } :root { --font-family: 'CustomFont', sans-serif; }`;
 }
 
-// --- 缺失函数补全：自定义图标表单渲染 ---
+// --- 自定义图标 ---
 function renderCustomizeForm() {
     const form = document.getElementById('customize-form');
     if(!form) return;
     form.innerHTML = '';
-    // DEFAULT_ICONS 来自 config.js
     Object.entries(DEFAULT_ICONS).forEach(([key, val]) => {
         const current = db.customIcons[key] || val.url;
         const div = document.createElement('div');
         div.className = 'icon-custom-item';
-        // 注意：这里 onclick 使用了 window.xxx，因为是 innerHTML 注入的
         div.innerHTML = `
             <img src="${current}" class="icon-preview">
             <div style="flex:1">
@@ -238,18 +251,192 @@ function renderCustomizeForm() {
     });
 }
 
-// 暴露给 HTML 调用的全局函数
 window.updateCustomIcon = async (key, url) => {
     if(url) db.customIcons[key] = url;
     await saveData();
-    setupHomeScreen(); // 刷新主屏
+    setupHomeScreen();
 };
 
 window.resetCustomIcon = async (key) => {
     delete db.customIcons[key];
     await saveData();
-    setupHomeScreen(); // 刷新主屏
+    setupHomeScreen();
 };
+
+// --- 世界书逻辑 (完全修复) ---
+function setupWorldBookLogic() {
+    // 渲染列表
+    document.querySelector('[data-target="world-book-screen"]').addEventListener('click', renderWorldBookList);
+    
+    // 添加按钮
+    document.getElementById('add-world-book-btn').onclick = () => {
+        currentEditingWorldBookId = null;
+        document.getElementById('edit-world-book-form').reset();
+        switchScreen('edit-world-book-screen');
+    };
+    
+    // 保存表单
+    document.getElementById('edit-world-book-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('world-book-name').value.trim();
+        const content = document.getElementById('world-book-content').value.trim();
+        const position = document.getElementById('world-book-position').value;
+        
+        if (!name || !content) return showToast('内容不能为空');
+        
+        if (currentEditingWorldBookId) {
+            const book = db.worldBooks.find(b => b.id === currentEditingWorldBookId);
+            if (book) Object.assign(book, { name, content, position });
+        } else {
+            db.worldBooks.push({ id: `wb_${Date.now()}`, name, content, position });
+        }
+        
+        await saveData();
+        renderWorldBookList();
+        switchScreen('world-book-screen');
+    };
+    
+    // 点击编辑
+    document.getElementById('world-book-list-container').addEventListener('click', (e) => {
+        const item = e.target.closest('.list-item');
+        if (item) {
+            const book = db.worldBooks.find(b => b.id === item.dataset.id);
+            if (book) {
+                currentEditingWorldBookId = book.id;
+                document.getElementById('world-book-name').value = book.name;
+                document.getElementById('world-book-content').value = book.content;
+                document.getElementById('world-book-position').value = book.position;
+                switchScreen('edit-world-book-screen');
+            }
+        }
+    });
+    
+    // 长按删除
+    document.getElementById('world-book-list-container').addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const item = e.target.closest('.list-item');
+        if (!item) return;
+        
+        createContextMenu([{
+            label: '删除条目', danger: true,
+            action: async () => {
+                if (confirm('删除此条目？')) {
+                    db.worldBooks = db.worldBooks.filter(b => b.id !== item.dataset.id);
+                    await saveData();
+                    renderWorldBookList();
+                }
+            }
+        }], e.clientX, e.clientY);
+    });
+}
+
+function renderWorldBookList() {
+    const list = document.getElementById('world-book-list-container');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    if (db.worldBooks.length === 0) {
+        document.getElementById('no-world-books-placeholder').style.display = 'block';
+    } else {
+        document.getElementById('no-world-books-placeholder').style.display = 'none';
+        db.worldBooks.forEach(book => {
+            const li = document.createElement('li');
+            li.className = 'list-item';
+            li.dataset.id = book.id;
+            li.innerHTML = `
+                <div class="item-details">
+                    <div class="item-name">${book.name} <span style="font-size:10px;color:#999;border:1px solid #ddd;padding:0 4px;border-radius:4px;">${book.position==='before'?'前置':'后置'}</span></div>
+                    <div class="item-preview">${book.content}</div>
+                </div>
+            `;
+            list.appendChild(li);
+        });
+    }
+}
+
+// 🟢 修复点2：API 拉取按钮逻辑
+function setupApiLogic() {
+    // 拉取模型列表
+    document.getElementById('fetch-models-btn').onclick = async () => {
+        const btn = document.getElementById('fetch-models-btn');
+        const select = document.getElementById('api-model');
+        const provider = document.getElementById('api-provider').value;
+        let url = document.getElementById('api-url').value.trim();
+        const key = document.getElementById('api-key').value.trim();
+        
+        if (!url || !key) return showToast('请先填写地址和 Key');
+        
+        // 移除末尾斜杠
+        if (url.endsWith('/')) url = url.slice(0, -1);
+        
+        // 构造请求地址
+        let fetchUrl = '';
+        let headers = {};
+        
+        if (provider === 'gemini') {
+            fetchUrl = `${url}/v1beta/models?key=${key}`;
+        } else {
+            // OpenAI/Claude/DeepSeek 格式
+            fetchUrl = `${url}/v1/models`;
+            headers = { 'Authorization': `Bearer ${key}` };
+        }
+        
+        btn.classList.add('loading');
+        try {
+            const res = await fetch(fetchUrl, { method: 'GET', headers });
+            if (!res.ok) throw new Error(`Status: ${res.status}`);
+            
+            const data = await res.json();
+            select.innerHTML = '';
+            
+            let models = [];
+            if (data.data) {
+                // OpenAI 格式
+                models = data.data.map(m => m.id);
+            } else if (data.models) {
+                // Gemini 格式
+                models = data.models.map(m => m.name.replace('models/', ''));
+            }
+            
+            if (models.length > 0) {
+                models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    select.appendChild(opt);
+                });
+                showToast(`成功获取 ${models.length} 个模型`);
+            } else {
+                select.innerHTML = '<option value="">未找到模型</option>';
+            }
+        } catch (e) {
+            showToast('拉取失败: ' + e.message);
+            console.error(e);
+        } finally {
+            btn.classList.remove('loading');
+        }
+    };
+
+    // 保存配置
+    document.getElementById('api-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        db.apiSettings = Object.fromEntries(fd.entries());
+        await saveData();
+        showToast('API 配置已保存');
+    }
+    
+    // 自动填充 URL
+    document.getElementById('api-provider').onchange = (e) => {
+        const defaults = {
+            'deepseek': 'https://api.deepseek.com',
+            'claude': 'https://api.anthropic.com',
+            'gemini': 'https://generativelanguage.googleapis.com'
+        };
+        const urlInput = document.getElementById('api-url');
+        if(defaults[e.target.value]) urlInput.value = defaults[e.target.value];
+    };
+}
 
 // --- 聊天列表 ---
 function setupChatListScreen() {
@@ -378,7 +565,6 @@ function setupChatLogic() {
             }
         }
     });
-    // 关键修正：确保函数存在后再绑定
     const settingsForm = document.getElementById('chat-settings-form');
     if(settingsForm) {
         settingsForm.addEventListener('change', savePrivateSettings);
@@ -570,11 +756,18 @@ async function getAiReply() {
 }
 
 function generateSystemPrompt(chat) {
+    let worldBookContext = '';
+    // 简单的世界书注入逻辑
+    if(chat.worldBookIds && chat.worldBookIds.length > 0) {
+        const relevantBooks = db.worldBooks.filter(wb => chat.worldBookIds.includes(wb.id));
+        worldBookContext = relevantBooks.map(wb => `【${wb.name}】\n${wb.content}`).join('\n\n');
+    }
+
     if(chat.type === 'private') {
-        return `你正在扮演 ${chat.realName}。我的名字是 ${chat.myName}。你的设定是：${chat.persona || '无'}。请完全沉浸，格式要求：普通消息用 [${chat.realName}的消息：内容]；发表情包用 [${chat.realName}发送的表情包：图片URL]。`;
+        return `世界观设定：\n${worldBookContext}\n\n你正在扮演 ${chat.realName}。我的名字是 ${chat.myName}。你的设定是：${chat.persona || '无'}。请完全沉浸，格式要求：普通消息用 [${chat.realName}的消息：内容]；发表情包用 [${chat.realName}发送的表情包：图片URL]。`;
     } else {
         const members = chat.members.map(m => `${m.realName}(${m.groupNickname})`).join(', ');
-        return `你正在扮演群聊中的所有成员：${members}。当前群名：${chat.name}。请随机选择成员发言，格式：[成员真名的消息：内容]。`;
+        return `世界观设定：\n${worldBookContext}\n\n你正在扮演群聊中的所有成员：${members}。当前群名：${chat.name}。请随机选择成员发言，格式：[成员真名的消息：内容]。`;
     }
 }
 
@@ -706,16 +899,6 @@ function setupGroupLogic() {
     }
 }
 
-function setupApiLogic() {
-    document.getElementById('api-form').onsubmit = async (e) => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
-        db.apiSettings = Object.fromEntries(fd.entries());
-        await saveData();
-        showToast('已保存');
-    }
-}
-
 function setupWallpaperLogic() {
     document.getElementById('wallpaper-upload').onchange = async (e) => {
         const file = e.target.files[0];
@@ -737,8 +920,6 @@ function setupFontLogic() {
 }
 
 function setupTutorialLogic() { /* 保持原样 */ }
-
-// --- 被遗漏的函数补全 (关键！) ---
 
 function loadSettingsToSidebar(type) {
     if (type === 'group') {

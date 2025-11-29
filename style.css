@@ -127,7 +127,7 @@ body {
 
 #home-screen {
     justify-content: space-between; 
-    background-image: url('https://images.unsplash.com/photo-1516641396056-0ce60a85d49f?q=80&w=2070&auto=format&fit=crop'); /* 默认背景改为更高级的虚化图 */
+    background-image: url('https://i.pinimg.com/736x/bd/7c/5e/bd7c5e3d695da973c90768cf08511298.jpg'); /* 默认背景改为更高级的虚化图 */
     background-size: cover; background-position: center;
     transition: background-image 0.5s ease-in-out; padding: 60px 0;
 }
