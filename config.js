@@ -2,15 +2,15 @@
 
 // 1. 默认应用图标 (使用通用图床或占位符)
 const DEFAULT_ICONS = {
-    'chat-list-screen': { name: '消息', url: 'https://i.postimg.cc/VvQB8dQT/chan-143.png' },
-    'api-settings-screen': { name: '设置', url: 'https://i.postimg.cc/50FqT8GL/chan-125.png' },
-    'wallpaper-screen': { name: '壁纸', url: 'https://i.postimg.cc/3wqFttL3/chan-90.png' },
-    'world-book-screen': { name: '世界书', url: 'https://i.postimg.cc/prCWkrKT/chan-74.png' },
-    'customize-screen': { name: '自定义', url: 'https://i.postimg.cc/vZVdC7gt/chan-133.png' },
-    'font-settings-screen': { name: '字体', url: 'https://i.postimg.cc/FzVtC0x4/chan-21.png' },
-    'tutorial-screen': { name: '说明', url: 'https://i.postimg.cc/6QgNzCFf/chan-118.png' },
-    'day-mode-btn': { name: '', url: 'https://i.postimg.cc/Jz0tYqnT/chan-145.png' },
-    'night-mode-btn': { name: '', url: 'https://i.postimg.cc/htYvkdQK/chan-146.png' }
+    'chat-list-screen': { name: '消息', url: 'https://i.postimg.cc/sgbRm9Ld/xiao-xi-icon.png' },
+    'api-settings-screen': { name: '设置', url: 'https://i.postimg.cc/0yhqnd41/she-zhi-icon.png' },
+    'wallpaper-screen': { name: '壁纸', url: 'https://i.postimg.cc/0yhqnd4g/bi-zhi-icon.png' },
+    'world-book-screen': { name: '世界书', url: 'https://i.postimg.cc/Mpg85bFC/shi-jie-shu-icon.png' },
+    'customize-screen': { name: '自定义', url: 'https://i.postimg.cc/DwRK6dMp/zi-ding-yi-icon.png' },
+    'font-settings-screen': { name: '字体', url: 'https://i.postimg.cc/3xzH1Ccn/zi-ti-icon.png' },
+    'tutorial-screen': { name: '说明', url: 'https://i.postimg.cc/52DMgqRk/shuo-ming-icon.png' },
+    'day-mode-btn': { name: '', url: 'https://i.postimg.cc/vZCdhLNP/bai-tian-mo-shi-icon.png' },
+    'night-mode-btn': { name: '', url: 'https://i.postimg.cc/zG417Scx/ye-wan-mo-shi-icon.png' }
 };
 
 // 2. 聊天气泡配色方案
