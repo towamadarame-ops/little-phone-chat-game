@@ -24,7 +24,56 @@
 <body>
     <div class="phone-screen">
         <!-- 主屏幕 -->
-        <div id="home-screen" class="screen active"></div>
+        <div id="home-screen" class="screen active">
+    <!-- 1. 时间组件 -->
+    <div class="time-widget">
+        <div class="time" id="current-time">12:30</div>
+        <div class="date" id="current-date">10月24日 星期二</div>
+    </div>
+
+    <!-- 2. 应用列表 (App Grid) - 这里修改上面部分的图标 -->
+    <div class="app-grid">
+        <!-- 朋友圈 / 世界书 -->
+        <a href="#" class="app-icon" onclick="openScreen('world-book-screen')">
+            <img src="https://cdn-icons-png.flaticon.com/512/4252/4252382.png" class="icon-img" alt="World">
+            <span class="app-name">世界书</span>
+        </a>
+        <!-- 相册 -->
+        <a href="#" class="app-icon" onclick="alert('相册功能开发中')">
+            <img src="https://cdn-icons-png.flaticon.com/512/3342/3342137.png" class="icon-img" alt="Gallery">
+            <span class="app-name">相册</span>
+        </a>
+        <!-- 备忘录 -->
+        <a href="#" class="app-icon" onclick="alert('备忘录功能开发中')">
+            <img src="https://cdn-icons-png.flaticon.com/512/2965/2965306.png" class="icon-img" alt="Notes">
+            <span class="app-name">备忘录</span>
+        </a>
+        <!-- 钱包 -->
+        <a href="#" class="app-icon" onclick="alert('钱包功能开发中')">
+            <img src="https://cdn-icons-png.flaticon.com/512/2666/2666505.png" class="icon-img" alt="Wallet">
+            <span class="app-name">钱包</span>
+        </a>
+        <!-- 更多应用占位 -->
+        <div class="app-icon">
+            <img src="https://cdn-icons-png.flaticon.com/512/3663/3663234.png" class="icon-img" style="opacity:0.5" alt="More">
+            <span class="app-name">更多</span>
+        </div>
+    </div>
+
+    <!-- 3. 底部 Dock 栏 - 放置最常用的应用 -->
+    <div class="dock">
+        <!-- 消息 (核心功能) -->
+        <a href="#" class="app-icon" onclick="openScreen('chat-list-screen')">
+            <img src="https://cdn-icons-png.flaticon.com/512/10605/10605924.png" class="icon-img" alt="Chat">
+            <span class="app-name">消息</span>
+        </a>
+        <!-- 设置 -->
+        <a href="#" class="app-icon" onclick="openScreen('customize-screen')">
+            <img src="https://cdn-icons-png.flaticon.com/512/3524/3524659.png" class="icon-img" alt="Settings">
+            <span class="app-name">设置</span>
+        </a>
+    </div>
+</div>
         
         <!-- 聊天列表 -->
         <div id="chat-list-screen" class="screen">
