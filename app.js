@@ -5,7 +5,8 @@ let db = {
     characters: [],
     groups: [],
     apiSettings: {},
-    wallpaper: 'https://i.postimg.cc/W4Z9R9x4/ins-1.jpg',
+    // 修改这里的默认链接
+    wallpaper: 'https://i.postimg.cc/P5cNsDPz/bd7c5e3d695da973c90768cf08511298.jpg',
     myStickers: [],
     homeScreenMode: 'night',
     worldBooks: [],
@@ -209,23 +210,27 @@ function applyHomeScreenMode(mode) {
 }
 
 function applyWallpaper(url) {
-    // --- 新增代码开始 ---
-    // 强制设定为你的新壁纸链接
-    const myNewWallpaper = "https://i.pinimg.com/736x/bd/7c/5e/bd7c5e3d695da973c90768cf08511298.jpg";
+    // 定义新的默认壁纸
+    const defaultWallpaper = 'https://i.postimg.cc/P5cNsDPz/bd7c5e3d695da973c90768cf08511298.jpg';
     
-    // 如果传入的 url 还是旧的那个（或者你想强制所有人用新的），就把 url 替换掉
-    // 这里的逻辑是：只要不是空的，就强制用新的。
-    // 你只需保存运行一次，看到背景变了，以后这几行就可以删掉了。
-    if (url) {
-        url = myNewWallpaper; 
-        // 顺便更新数据库，让它记住新的
+    // 旧的壁纸链接列表（如果检测到用户当前是这些旧图，就自动替换成新的）
+    const oldWallpapers = [
+        'https://i.postimg.cc/W4Z9R9x4/ins-1.jpg',
+        'https://i.pinimg.com/736x/bd/7c/5e/bd7c5e3d695da973c90768cf08511298.jpg'
+    ];
+
+    // 逻辑：如果 url 为空，或者 url 是旧的默认图，则强制更新为新的默认图
+    // 这样不会影响用户自己上传的自定义图片
+    if (!url || oldWallpapers.includes(url)) {
+        url = defaultWallpaper;
+        // 同步更新数据库
         if (typeof db !== 'undefined') {
-            db.wallpaper = myNewWallpaper;
+            db.wallpaper = defaultWallpaper;
             saveData(); 
         }
     }
-    // --- 新增代码结束 ---
 
+    // 应用壁纸
     if(url) {
         document.getElementById('home-screen').style.backgroundImage = `url(${url})`;
         const preview = document.getElementById('wallpaper-preview');
