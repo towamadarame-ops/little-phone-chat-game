@@ -30,7 +30,7 @@ let storage;
 try {
     storage = new DataStorage();
 } catch (e) {
-    alert("数据库启动失败，请检查 utils.js 是否正确加载或 Dexie 是否被拦截。");
+    console.error("数据库启动失败");
 }
 const STORAGE_KEY = 'app_data';
 
@@ -53,9 +53,13 @@ async function initApp() {
         applyHomeScreenMode(db.homeScreenMode);
         
         renderChatList();
+        
+        // 初始化完成后，显示主屏幕
+        switchScreen('home-screen');
+        
     } catch (e) {
         console.error("初始化崩溃:", e);
-        // 错误已被 window.onerror 捕获显示
+        alert("初始化出错，请检查控制台: " + e.message);
     }
 }
 
@@ -335,17 +339,18 @@ function setupChatLogic() {
             }
         }
     });
-    document.getElementById('chat-settings-form').addEventListener('change', savePrivateSettings);
+    // 关键修正：确保函数存在后再绑定
+    const settingsForm = document.getElementById('chat-settings-form');
+    if(settingsForm) {
+        settingsForm.addEventListener('change', savePrivateSettings);
+    }
     
-    // 监听消息区域点击（处理语音、转账等）
     document.getElementById('message-area').addEventListener('click', (e) => {
-        // 语音播放
         const voiceBubble = e.target.closest('.voice-bubble');
         if(voiceBubble) {
             const transcript = voiceBubble.closest('.message-wrapper').querySelector('.voice-transcript');
             if(transcript) transcript.classList.toggle('active');
         }
-        // 转账接收
         const transferCard = e.target.closest('.transfer-card.received-transfer');
         if(transferCard && currentChatType === 'private') {
             const wrapper = transferCard.closest('.message-wrapper');
@@ -403,7 +408,6 @@ function createMessageElement(msg, chat) {
     let bubbleContent = '';
     let bubbleClass = `message-bubble ${isSent ? 'sent' : 'received'}`;
     
-    // 简单解析内容类型
     if(msg.stickerData) {
         bubbleContent = `<div class="image-bubble"><img src="${msg.stickerData}"></div>`;
         bubbleClass = '';
@@ -435,18 +439,15 @@ function createMessageElement(msg, chat) {
             </div>
             <div class="voice-transcript">${text}</div>
         `;
-        bubbleClass = ''; // voice-bubble 自带样式
+        bubbleClass = '';
     } else {
         bubbleContent = msg.content.replace(/\[.*?\]/g, '').trim() || msg.content;
     }
 
-    // 主题样式
     const theme = COLOR_THEMES[chat.theme || 'white_pink'];
     const style = isSent ? theme.sent : theme.received;
     
-    // 如果是纯文本气泡，应用颜色
     let bubbleHtml = bubbleClass ? `<div class="${bubbleClass}" style="background-color:${style.bg};color:${style.text}">${bubbleContent}</div>` : bubbleContent;
-    
     const avatarUrl = isSent ? (chat.type==='private'?chat.myAvatar:chat.me.avatar) : (chat.type==='private'?chat.avatar:'https://i.postimg.cc/Y96LPskq/o-o-2.jpg');
     
     wrapper.innerHTML = `
@@ -480,8 +481,6 @@ async function sendMessage() {
     input.value = '';
 }
 
-// --- AI 调用 (Prompt 优化版) ---
-
 async function getAiReply() {
     if(isGenerating) return;
     const { url, key, model, provider } = db.apiSettings;
@@ -499,7 +498,6 @@ async function getAiReply() {
             messages.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content });
         });
 
-        // 简单的 Fetch 请求
         const response = await fetch(provider === 'gemini' ? `${url}/v1beta/models/${model}:generateContent?key=${key}` : `${url}/v1/chat/completions`, {
             method: 'POST',
             headers: provider === 'gemini' ? {'Content-Type': 'application/json'} : {'Content-Type': 'application/json', 'Authorization': `Bearer ${key}`},
@@ -510,7 +508,6 @@ async function getAiReply() {
         
         const data = await response.json();
         let replyText = '';
-        
         if(provider === 'gemini') replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
         else replyText = data.choices?.[0]?.message?.content || '';
 
@@ -542,10 +539,7 @@ function generateSystemPrompt(chat) {
     }
 }
 
-// --- 工具栏逻辑 ---
-
 function setupToolLogic() {
-    // 语音
     document.getElementById('voice-message-btn').onclick = () => document.getElementById('send-voice-modal').classList.add('visible');
     document.getElementById('send-voice-form').onsubmit = async (e) => {
         e.preventDefault();
@@ -559,7 +553,6 @@ function setupToolLogic() {
         document.getElementById('send-voice-modal').classList.remove('visible');
     };
 
-    // 转账
     document.getElementById('wallet-btn').onclick = () => document.getElementById('send-transfer-modal').classList.add('visible');
     document.getElementById('send-transfer-form').onsubmit = async (e) => {
         e.preventDefault();
@@ -573,7 +566,6 @@ function setupToolLogic() {
         document.getElementById('send-transfer-modal').classList.remove('visible');
     };
     
-    // 转账接收逻辑
     document.getElementById('accept-transfer-btn').onclick = async () => handleTransfer('received');
     document.getElementById('return-transfer-btn').onclick = async () => handleTransfer('returned');
 }
@@ -592,14 +584,11 @@ function setupStickerLogic() {
         modal.classList.toggle('visible');
         if(modal.classList.contains('visible')) renderStickerGrid();
     };
-    
     document.getElementById('add-new-sticker-btn').onclick = () => document.getElementById('add-sticker-modal').classList.add('visible');
-    
     document.getElementById('add-sticker-form').onsubmit = async (e) => {
         e.preventDefault();
         const name = document.getElementById('sticker-name').value;
         const urlInput = document.getElementById('sticker-url-input').value;
-        // 简单处理，实际应包含文件上传逻辑
         db.myStickers.push({ id: `s_${Date.now()}`, name, data: urlInput || 'https://i.postimg.cc/VvQB8dQT/chan-143.png' });
         await saveData();
         renderStickerGrid();
@@ -627,7 +616,6 @@ function renderStickerGrid() {
     });
 }
 
-// --- 群聊、字体、配置等基础逻辑 ---
 function setupGroupLogic() {
     document.getElementById('create-group-btn').onclick = () => {
         const list = document.getElementById('member-selection-list');
@@ -659,6 +647,25 @@ function setupGroupLogic() {
         renderChatList();
         document.getElementById('create-group-modal').classList.remove('visible');
     };
+    
+    // 群聊设置保存
+    const groupForm = document.getElementById('group-settings-form');
+    if (groupForm) {
+        groupForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const group = getChatById(currentChatId, 'group');
+            if(!group) return;
+            group.name = document.getElementById('setting-group-name').value;
+            group.theme = document.getElementById('setting-group-theme-color').value;
+            group.maxMemory = parseInt(document.getElementById('setting-group-max-memory').value) || 20;
+            await saveData();
+            document.getElementById('chat-room-title').textContent = group.name;
+            renderChatList();
+            renderMessages();
+            showToast('群设置已保存');
+            document.getElementById('group-settings-sidebar').classList.remove('open');
+        };
+    }
 }
 
 function setupApiLogic() {
@@ -691,16 +698,15 @@ function setupFontLogic() {
     }
 }
 
-// ==========================================
-// 👇 请把下面这些缺失的代码粘贴到 app.js 的最末尾 👇
-// ==========================================
+function setupTutorialLogic() { /* 保持原样 */ }
+
+// --- 被遗漏的函数补全 (关键！) ---
 
 function loadSettingsToSidebar(type) {
     if (type === 'group') {
         const group = getChatById(currentChatId, 'group');
         if (!group) return;
         
-        // 渲染群聊设置表单
         const form = document.getElementById('group-settings-form');
         form.innerHTML = `
             <div class="form-group"><label>群名称</label><input id="setting-group-name" value="${group.name}"></div>
@@ -714,12 +720,12 @@ function loadSettingsToSidebar(type) {
                 <img src="${group.avatar}" id="setting-group-avatar-preview" class="group-avatar-preview">
                 <p style="font-size:12px;color:#888;">(暂不支持修改头像)</p>
             </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:20px;">保存群设置</button>
         `;
     } else {
         const chat = getChatById(currentChatId, 'private');
         if (!chat) return;
         
-        // 渲染私聊设置表单
         const form = document.getElementById('chat-settings-form');
         form.innerHTML = `
             <div class="form-group"><label>备注名</label><input name="remarkName" value="${chat.remarkName}"></div>
@@ -735,7 +741,6 @@ function loadSettingsToSidebar(type) {
 
 async function savePrivateSettings() {
     const form = document.getElementById('chat-settings-form');
-    // 防止在非私聊界面触发报错
     if (!form || currentChatType !== 'private') return;
 
     const formData = new FormData(form);
@@ -749,24 +754,5 @@ async function savePrivateSettings() {
     await saveData();
     document.getElementById('chat-room-title').textContent = chat.remarkName;
     renderChatList();
-    renderMessages(); // 刷新气泡颜色
-    // showToast('设置已保存'); // 防止频繁提示
-}
-
-// 补充：群聊设置保存逻辑
-document.getElementById('group-settings-form').onsubmit = async (e) => {
-    e.preventDefault();
-    const group = getChatById(currentChatId, 'group');
-    if(!group) return;
-    
-    group.name = document.getElementById('setting-group-name').value;
-    group.theme = document.getElementById('setting-group-theme-color').value;
-    group.maxMemory = parseInt(document.getElementById('setting-group-max-memory').value) || 20;
-    
-    await saveData();
-    document.getElementById('chat-room-title').textContent = group.name;
-    renderChatList();
     renderMessages();
-    showToast('群设置已保存');
-    document.getElementById('group-settings-sidebar').classList.remove('open');
-};
+}
